@@ -15,7 +15,7 @@
 #   - sshd: public key only, root login disabled, root password locked;
 #   - serial console, qemu-guest-agent, BIOS and UEFI boot.
 #
-# Derived from linitio/openstack-freebsd-image (MIT).
+# Derived from linitio/openstack-freebsd-image (GPL-3.0).
 
 set -eu
 
