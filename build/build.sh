@@ -7,8 +7,8 @@
 #
 # Image contract (checked by the OpenStack runtime smoke in strict mode):
 #   - cloud-init (net/cloud-init) with the ConfigDrive and OpenStack
-#     datasources: SSH key, hostname, `freebsd` default user with
-#     passwordless sudo, root partition and ZFS pool grown to the disk;
+#     datasources: SSH key, hostname, `freebsd` default user (login shell
+#     /bin/sh) with passwordless sudo, root partition and ZFS pool grown to the disk;
 #   - IPv4 (DHCP) and IPv6 (SLAAC, EUI-64 address as assigned by Neutron)
 #     through dhcpcd on every interface; cloud-init does not render the
 #     network;
@@ -133,6 +133,17 @@ mkdir -p /usr/local/etc/cloud/cloud.cfg.d
 cat > /usr/local/etc/cloud/cloud.cfg.d/99_oic-policy.cfg <<'CI'
 # openimages.cloud policy
 datasource_list: [ConfigDrive, OpenStack, NoCloud, None]
+# The net/cloud-init default user logs in with tcsh: use the POSIX sh, so
+# commands sent over SSH (automation, the catalog smoke) behave as on the
+# Linux images.
+system_info:
+  default_user:
+    name: freebsd
+    lock_passwd: true
+    gecos: FreeBSD
+    groups: [wheel]
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    shell: /bin/sh
 disable_root: true
 ssh_pwauth: false
 # dhcpcd brings up IPv4 and IPv6 on every interface.
