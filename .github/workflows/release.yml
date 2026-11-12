@@ -1,0 +1,67 @@
+name: Build & publish image
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override the FreeBSD 15 version (e.g. 15.1); otherwise derived from the tag, falling back to VERSION'
+        required: false
+      publish:
+        description: 'If false, skip upload + CF purge (dry-run validation)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write   # cosign keyless via GitHub OIDC
+
+jobs:
+  resolve-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - id: v
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ inputs.version }}" ]]; then
+            v="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            v="${GITHUB_REF#refs/tags/v}"
+          else
+            v=$(tr -d '[:space:]' < VERSION)
+          fi
+          if [[ ! "$v" =~ ^15\.[0-9]+$ ]]; then
+            echo "::error::version '$v' is not a FreeBSD 15 release (e.g. 15.1)"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  # FreeBSD 15 follows VERSION (watched daily); FreeBSD 14 is the last
+  # 14.x point release, bumped by hand here until the branch ends
+  # (2028-11-30).
+  build:
+    needs: resolve-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - major: '15'
+          - major: '14'
+            version: '14.5'
+    name: FreeBSD ${{ matrix.major }}
+    uses: open-img-cloud/.github/.github/workflows/build-freebsd-image.yml@main
+    with:
+      os_name: freebsd-${{ matrix.major }}
+      version: ${{ matrix.version || needs.resolve-version.outputs.version }}
+      output_filename: 'freebsd-{version}-x86_64.qcow2'
+      build_script: build/build.sh
+      runtime_smoke_login_user: freebsd
+      publish: ${{ inputs.publish == true || github.event_name == 'push' }}
+      sync_latest: true
+    secrets: inherit
