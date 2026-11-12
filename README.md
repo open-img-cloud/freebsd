@@ -1,85 +1,135 @@
-# FreeBSD cloud images
+<p align="center">
+  <a href="https://openimages.cloud/images/freebsd-15/">
+    <img src="https://openimages.cloud/img/og/freebsd-15.png" alt="FreeBSD cloud images for OpenStack and Proxmox" width="720">
+  </a>
+</p>
 
-Cloud-init-ready, signed FreeBSD 15 and FreeBSD 14 qcow2 images for OpenStack
-and Proxmox, part of the [openimages.cloud](https://openimages.cloud) catalog.
+<p align="center">
+  <a href="https://openimages.cloud/images/freebsd-15/"><img alt="FreeBSD 15 latest version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fimages.openimages.cloud%2Ffreebsd-15%2Flatest%2FMANIFEST.json&query=%24.version&label=FreeBSD%2015&color=2459c4&cacheSeconds=3600"></a>
+  <a href="https://openimages.cloud/images/freebsd-14/"><img alt="FreeBSD 14 latest version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fimages.openimages.cloud%2Ffreebsd-14%2Flatest%2FMANIFEST.json&query=%24.version&label=FreeBSD%2014&color=2459c4&cacheSeconds=3600"></a>
+  <a href="https://github.com/open-img-cloud/freebsd/actions/workflows/release.yml"><img alt="Release" src="https://github.com/open-img-cloud/freebsd/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://openimages.cloud/verify/"><img alt="Signed with Sigstore cosign" src="https://img.shields.io/badge/signed-Sigstore%20cosign-2459c4"></a>
+  <a href="https://openimages.cloud/quality/"><img alt="Boot-tested on OpenStack" src="https://img.shields.io/badge/boot--tested-OpenStack-2459c4"></a>
+  <a href="LICENSE.md"><img alt="License GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-555"></a>
+</p>
 
-- Catalog pages: <https://openimages.cloud/images/freebsd-15/>,
-  <https://openimages.cloud/images/freebsd-14/>
-- Registry: <https://images.openimages.cloud/freebsd-15/latest/>,
-  <https://images.openimages.cloud/freebsd-14/latest/>
+<p align="center">
+  <a href="https://openimages.cloud/images/freebsd-15/"><b>FreeBSD 15</b></a> ·
+  <a href="https://openimages.cloud/images/freebsd-14/"><b>FreeBSD 14</b></a> ·
+  <a href="https://images.openimages.cloud/freebsd-15/latest/">Download 15</a> ·
+  <a href="https://images.openimages.cloud/freebsd-14/latest/">Download 14</a> ·
+  <a href="https://openimages.cloud/verify/">Verify</a> ·
+  <a href="https://github.com/open-img-cloud/docs">Documentation</a> ·
+  <a href="https://github.com/open-img-cloud/freebsd/issues">Report an issue</a>
+</p>
 
-## About
+FreeBSD 15 and FreeBSD 14 cloud images (qcow2) for **OpenStack** and **Proxmox**: FreeBSD ships
+no OpenStack image with cloud-init, so these are built from the official release distribution
+sets on a ZFS root, made ready for both clouds with the same rules as every
+[openimages.cloud](https://openimages.cloud) image, signed with Sigstore cosign and boot-tested
+on a real OpenStack before they are published.
 
-FreeBSD is an operating system published by the FreeBSD Project
-([https://www.freebsd.org/](https://www.freebsd.org/)). FreeBSD ships no
-official OpenStack image with cloud-init, so this repo builds one from the
-release distribution sets: `build/build.sh` downloads `base.txz` and
-`kernel.txz`, verifies them against the release `MANIFEST`, installs them on
-a ZFS root, applies the security patches (`freebsd-update`) and configures
-the image for the cloud. The image is then boot-tested on OpenStack, signed
-with cosign (keyless) and published.
+## At a glance
 
-The build runs in an ephemeral FreeBSD virtual machine through the
-[`build-freebsd-image.yml`](https://github.com/open-img-cloud/.github/blob/main/.github/workflows/build-freebsd-image.yml)
-reusable workflow of [`open-img-cloud/.github`](https://github.com/open-img-cloud/.github).
-This repo only ships `VERSION`, `build/build.sh`, `build/detect-upstream.sh`
-and two thin caller workflows.
+| | |
+|---|---|
+| **Upstream** | [FreeBSD](https://www.freebsd.org/) release sets `base.txz` and `kernel.txz` from [download.freebsd.org](https://download.freebsd.org/releases/amd64/), checked against the release `MANIFEST`, then patched with `freebsd-update` |
+| **Catalog ids** | `freebsd-15` (current branch, follows [`VERSION`](VERSION)) and `freebsd-14` (14.5, the last 14.x release) |
+| **Default user** | `freebsd`, SSH key only, passwordless `sudo`, login shell `/bin/sh` |
+| **Firmware** | BIOS and UEFI (the same image boots both) |
+| **Format** | qcow2, x86_64, ZFS root (pool `zroot`) grown to the disk at first boot |
+| **Version** | FreeBSD release, `<major>.<minor>`, e.g. `15.1` ([15 versions](https://images.openimages.cloud/freebsd-15/versions.json), [14 versions](https://images.openimages.cloud/freebsd-14/versions.json)) |
+| **Support** | FreeBSD 15 until 2029-12-31, FreeBSD 14 until 2028-11-30 ([FreeBSD security page](https://www.freebsd.org/security/)); prefer 15 for new deployments |
 
-## Lifecycle
-
-| Branch | Bucket | Release | Supported until |
-|---|---|---|---|
-| FreeBSD 15 | `freebsd-15` | follows `VERSION` (watched daily) | 2029-12-31 |
-| FreeBSD 14 | `freebsd-14` | 14.5, the last 14.x release | 2028-11-30 |
-
-FreeBSD 15 is the current production branch; prefer it for new deployments.
-Dates come from the [FreeBSD security page](https://www.freebsd.org/security/).
-
-## Image
-
-- File: `freebsd-<version>-x86_64.qcow2` (e.g. `freebsd-14.5-x86_64.qcow2`),
-  6 GiB virtual disk, BIOS and UEFI boot.
-- Default user: `freebsd` (SSH key from cloud-init, passwordless sudo). Its
-  login shell is `sh`.
-- ZFS root (pool `zroot`): the partition and the pool grow to the flavor
-  disk on first boot.
-- `net/cloud-init` with the ConfigDrive and OpenStack datasources (SSH key,
-  hostname, user data).
-- Network: `dhcpcd` on every interface, DHCPv4 and IPv6 with the address
-  Neutron assigns to the port (`slaac hwaddr`).
-- sshd accepts public keys only, root login is disabled and the root
-  password is locked. Serial console on `ttyu0`, `qemu-guest-agent` enabled.
-
-## Use it
+## Quick start
 
 ```sh
-V=14.5
-curl -fLO https://images.openimages.cloud/freebsd-14/$V/freebsd-$V-x86_64.qcow2
-
-openstack image create \
-    --disk-format qcow2 --container-format bare \
-    --property os_distro=freebsd --property os_version=$V \
-    --property hw_qemu_guest_agent=yes \
-    --file freebsd-$V-x86_64.qcow2 \
-    'FreeBSD '$V
+# Pick the branch: freebsd-15 or freebsd-14
+ID=freebsd-15
+# Latest version and its file name, from the signed manifest
+M=https://images.openimages.cloud/$ID/latest/MANIFEST.json
+V=$(curl -fsS $M | jq -r .version); F=$(curl -fsS $M | jq -r .filename)
+curl -fLO https://images.openimages.cloud/$ID/$V/$F
 ```
 
-Verification (cosign), Proxmox commands and provenance details are on the
-catalog pages and in the [verification guide](https://openimages.cloud/verify/).
+<details>
+<summary><b>OpenStack</b></summary>
 
-## Release flow
+```sh
+openstack image create --disk-format qcow2 --container-format bare \
+  --property os_distro=freebsd --property os_version=$V \
+  --property hw_qemu_guest_agent=yes --property os_require_quiesce=no \
+  --property os_admin_user=freebsd \
+  --file "$F" "FreeBSD $V"
+```
 
-1. `watch.yml` runs daily and opens an `auto/upstream-bump` pull request on
-   `VERSION` when a new FreeBSD 15.x release is published.
-2. Merge it, then push the tag `v<VERSION>`: `release.yml` builds FreeBSD 15
-   (from `VERSION`) and FreeBSD 14 (14.5, set in the workflow), boot-tests,
-   signs and publishes both images.
+`os_require_quiesce=no`: the FreeBSD guest agent can only freeze UFS, not ZFS, so snapshots
+are taken without quiescing. The full property set is on the catalog pages
+([15](https://openimages.cloud/images/freebsd-15/), [14](https://openimages.cloud/images/freebsd-14/))
+and in [`index.json`](https://images.openimages.cloud/index.json). To keep images up to date
+automatically, use [oic-sync](https://github.com/open-img-cloud/oic-sync).
+
+</details>
+
+<details>
+<summary><b>Proxmox VE</b></summary>
+
+The commands to create a cloud-init template from these images are on the catalog pages
+([15](https://openimages.cloud/images/freebsd-15/), [14](https://openimages.cloud/images/freebsd-14/)).
+
+</details>
+
+<details>
+<summary><b>Verify the signature</b></summary>
+
+```sh
+curl -fLO https://images.openimages.cloud/$ID/$V/$F.bundle
+cosign verify-blob "$F" --bundle "$F.bundle" \
+  --certificate-identity-regexp '^https://github.com/open-img-cloud/\.github/\.github/workflows/build-(libguestfs|dib|nix-flake|freebsd)-image\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+</details>
+
+## What this image contains
+
+[`build/build.sh`](build/build.sh) runs in an ephemeral FreeBSD virtual machine and builds the
+image from scratch:
+
+- GPT disk with BIOS (`gptzfsboot`) and UEFI (`loader.efi`) boot code, ZFS root pool `zroot`
+  with `autoexpand`; cloud-init grows the partition and the pool at first boot;
+- the release sets with the latest security patches (`freebsd-update`);
+- `net/cloud-init` with the openimages.cloud policy: config drive read first, then the
+  metadata service; no root login, no SSH password; the `freebsd` user logs in with `/bin/sh`
+  instead of `tcsh`, so commands sent over SSH behave as on the Linux images;
+- `dhcpcd` on every interface: DHCPv4, and IPv6 with the address Neutron assigns to the port
+  (`slaac hwaddr`); cloud-init does not render the network;
+- sshd with public keys only, root password locked, `qemu-guest-agent`, `sudo`, serial
+  console on `ttyu0`;
+- host keys, `hostid`, `resolv.conf` and caches removed so every instance starts fresh.
+
+Every release must pass the same [runtime contract](https://openimages.cloud/quality/) on
+OpenStack: SSH with the injected key, cloud-init finished, DNS, hostname, root filesystem grown,
+passwordless `sudo`, IPv6 address and egress.
+
+## How releases happen
+
+1. Every day at 07:14 UTC a watcher looks for a new FreeBSD 15.x release and opens a pull
+   request that bumps [`VERSION`](VERSION).
+2. Merging it is all it takes: the release is tagged, then both images are built, signed,
+   boot-tested and published (FreeBSD 15 from `VERSION`, FreeBSD 14 at the 14.5 set in
+   [`release.yml`](.github/workflows/release.yml)), and `latest/` and the
+   [catalog](https://openimages.cloud/images/) move to them.
+
+This repository only holds what is specific to FreeBSD: [`VERSION`](VERSION),
+[`build/build.sh`](build/build.sh), [`build/detect-upstream.sh`](build/detect-upstream.sh)
+and thin workflows calling the shared pipeline in
+[`open-img-cloud/.github`](https://github.com/open-img-cloud/.github).
 
 ## License
 
-The build tooling in this repository is [GPL-3.0](LICENSE.md). `build/build.sh`
-derives from [linitio/openstack-freebsd-image](https://github.com/linitio/openstack-freebsd-image),
-released under the same license. The image keeps the licensing terms of
-FreeBSD (BSD licenses) and of the packages it installs. FreeBSD is a
-registered trademark of The FreeBSD Foundation; this project is not
-affiliated with it.
+The build tooling in this repository is under [GPL-3.0](LICENSE.md); `build/build.sh` derives
+from [linitio/openstack-freebsd-image](https://github.com/linitio/openstack-freebsd-image),
+released under the same license. The image keeps the licensing terms of FreeBSD (BSD licenses)
+and of the packages it installs. FreeBSD is a registered trademark of The FreeBSD Foundation;
+this project is not affiliated with it.
