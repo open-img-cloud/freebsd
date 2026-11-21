@@ -1,8 +1,12 @@
 #!/bin/sh
 # Builds a FreeBSD cloud image for OpenStack and Proxmox.
 #
-# Runs as root on a FreeBSD host (the build-freebsd-image reusable workflow
-# boots an ephemeral FreeBSD VM for it):  sh build/build.sh <version> <out-dir>
+# Runs as root on a FreeBSD host, either the dedicated FreeBSD runner or an
+# ephemeral FreeBSD VM (build-freebsd-image reusable workflow, build_runner
+# input):  sh build/build.sh <version> <out-dir>
+# The host may run a newer FreeBSD than the image (one runner builds every
+# major); it must not run an older one, since the image's own binaries run in
+# a chroot on the host kernel.
 # Produces <out-dir>/image.raw.
 #
 # Image contract (checked by the OpenStack runtime smoke in strict mode):
@@ -46,6 +50,28 @@ for set in base kernel; do
   echo "[build] $set.txz sha256 verified"
 done
 
+# --- Host and image releases ----------------------------------------------
+host_major=$(freebsd-version -k | cut -d. -f1)
+image_major=${VERSION%%.*}
+if [ "$host_major" -lt "$image_major" ]; then
+  echo "::error::FreeBSD $host_major host cannot build a FreeBSD $image_major image" >&2
+  exit 1
+fi
+# A newer host creates the pool with features the image's loader and kernel
+# may not know: limit them to the image's OpenZFS release.
+pool_compat=
+if [ "$host_major" -gt "$image_major" ]; then
+  case "$image_major" in
+    13) pool_compat=openzfs-2.1-freebsd ;;
+    14) pool_compat=openzfs-2.2 ;;
+    *) echo "::error::no ZFS feature set known for FreeBSD $image_major" >&2; exit 1 ;;
+  esac
+  echo "[build] FreeBSD $host_major host: pool limited to $pool_compat"
+fi
+
+# Boot code of the image's release, not the host's.
+tar -xf "$work/base.txz" -C "$work" ./boot/pmbr ./boot/gptzfsboot
+
 # --- Disk: GPT, BIOS boot + EFI, ZFS root last (growpart extends it) -----
 rm -f "$img"
 truncate -s "$SIZE" "$img"
@@ -61,7 +87,7 @@ trap cleanup EXIT
 
 gpart create -s gpt "$md"
 gpart add -t freebsd-boot -s 512k -l gptboot "$md"
-gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 "$md"
+gpart bootcode -b "$work/boot/pmbr" -p "$work/boot/gptzfsboot" -i 1 "$md"
 gpart add -t efi -s 64M -l efiboot "$md"
 gpart add -t freebsd-zfs -l rootfs "$md"
 
@@ -72,6 +98,7 @@ mkdir -p "$work/efi/EFI/BOOT" "$work/efi/EFI/freebsd"
 
 # Pool named zroot in the image, imported here under a temporary name.
 zpool create -f -o altroot="$mnt" -o cachefile=none -o autoexpand=on -t "$TMPPOOL" \
+  ${pool_compat:+-o compatibility="$pool_compat"} \
   -O compression=lz4 -O atime=off -O mountpoint=none "$POOL" "/dev/${md}p3"
 zfs create -o mountpoint=none "$TMPPOOL/ROOT"
 zfs create -o mountpoint=/ -o canmount=noauto "$TMPPOOL/ROOT/default"

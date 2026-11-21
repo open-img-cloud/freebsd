@@ -61,6 +61,9 @@ jobs:
       version: ${{ matrix.version || needs.resolve-version.outputs.version }}
       output_filename: 'freebsd-{version}-x86_64.qcow2'
       build_script: build/build.sh
+      # Dedicated FreeBSD runner (runner group freebsd-builder, limited to this repo and to
+      # build-freebsd-image.yml@main). Release, signing and smoke stay on ubuntu-latest.
+      build_runner: '["self-hosted","freebsd","amd64"]'
       runtime_smoke_login_user: freebsd
       publish: ${{ inputs.publish == true || github.event_name == 'push' }}
       sync_latest: true
