@@ -30,8 +30,8 @@ while [ $(( $(date +%s) - t0 )) -lt 900 ]; do
 done
 echo "[$tag] ssh: $([ $ok = 1 ] && echo OK || echo FAIL) after $(( $(date +%s) - t0 ))s"
 if [ $ok = 1 ]; then
-  ssh $o freebsd@127.0.0.1 'echo "version: $(freebsd-version -ku | tr "\n" " ")"; echo "hostname: $(hostname)"; echo "pool: $(zpool list -H -o name,size,health | tr "\t" " ")"; echo "root fs: $(df -h / | tail -1 | awk "{print \$2}")"; echo "qga service: $(service qemu-guest-agent status 2>&1)"; echo "cloud-init: $(cloud-init status --long 2>&1 | tr "\n" " ")"; echo "sudo: $(sudo -n true && echo OK || echo FAIL)"; echo "shell: $SHELL"'
-  echo "qga ping: $(printf '{"execute":"guest-ping"}\n' | timeout 10 socat - UNIX-CONNECT:$W/qga-$tag.sock)"
+  ssh $o freebsd@127.0.0.1 'echo "version: $(freebsd-version -ku | tr "\n" " ")"; echo "hostname: $(hostname)"; echo "pool: $(zpool list -H -o name,size,health | tr "\t" " ")"; echo "root fs: $(df -h / | tail -1 | awk "{print \$2}")"; echo "qga service: $(sudo service qemu-guest-agent status 2>&1)"; echo "qga proc: $(pgrep -lf qemu-ga)"; echo "qga dev: $(ls /dev/vtcon/ 2>&1)"; echo "cloud-init: $(cloud-init status --long 2>&1 | tr "\n" " ")"; echo "sudo: $(sudo -n true && echo OK || echo FAIL)"; echo "shell: $SHELL"'
+  echo "qga info: $((printf '{"execute":"guest-info"}\n'; sleep 3) | timeout 10 socat -t 5 - UNIX-CONNECT:$W/qga-$tag.sock)"
 fi
 kill $qpid 2>/dev/null; wait $qpid 2>/dev/null
 rm -f disk-$tag.qcow2

@@ -36,7 +36,7 @@ jobs:
         run: |
           img=$(ls $PWD/art/*.qcow2)
           .github/smoke-tmp/smoke.sh "$img" ${{ matrix.fw }} t | tee result.txt
-          grep -q "ssh: OK" result.txt
+          grep -q "ssh: OK" result.txt && grep -q "qga info: {\"return\"" result.txt
       - name: Console log
         if: always()
         run: tail -60 ${{ runner.temp }}/console-t.log || true
