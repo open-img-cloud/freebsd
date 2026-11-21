@@ -93,8 +93,9 @@ cosign verify-blob "$F" --bundle "$F.bundle" \
 
 ## What this image contains
 
-[`build/build.sh`](build/build.sh) runs in an ephemeral FreeBSD virtual machine and builds the
-image from scratch:
+[`build/build.sh`](build/build.sh) runs on a dedicated FreeBSD runner and builds the image from
+scratch, with the boot code of the image's release and, on a newer host, a ZFS pool limited to
+the image's OpenZFS feature set:
 
 - GPT disk with BIOS (`gptzfsboot`) and UEFI (`loader.efi`) boot code, ZFS root pool `zroot`
   with `autoexpand`; cloud-init grows the partition and the pool at first boot;
