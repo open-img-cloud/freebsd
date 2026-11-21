@@ -4,6 +4,9 @@
 # Runs as root on a FreeBSD host, either the dedicated FreeBSD runner or an
 # ephemeral FreeBSD VM (build-freebsd-image reusable workflow, build_runner
 # input):  sh build/build.sh <version> <out-dir>
+# <version> is a release (15.1) or a release at a security patch level
+# (15.1-p7): the build applies the patches with freebsd-update and fails when
+# the image does not end at exactly that level.
 # The host may run a newer FreeBSD than the image (one runner builds every
 # major); it must not run an older one, since the image's own binaries run in
 # a chroot on the host kernel.
@@ -24,12 +27,17 @@
 set -eu
 
 VERSION="${1:?usage: build.sh <version> <out-dir>}"
+RELEASE="${VERSION%%-p*}"
+case "$VERSION" in
+  *-p*) PATCH="${VERSION##*-p}" ;;
+  *) PATCH=0 ;;
+esac
 OUT="${2:?usage: build.sh <version> <out-dir>}"
 SIZE="${IMAGE_SIZE:-6G}"
 POOL=zroot
 TMPPOOL=oicbuild
 
-DIST="https://download.freebsd.org/releases/amd64/${VERSION}-RELEASE"
+DIST="https://download.freebsd.org/releases/amd64/${RELEASE}-RELEASE"
 work=$(mktemp -d /tmp/oic.XXXXXX)
 mnt="$work/mnt"
 mkdir -p "$OUT" "$mnt"
@@ -52,7 +60,7 @@ done
 
 # --- Host and image releases ----------------------------------------------
 host_major=$(freebsd-version -k | cut -d. -f1)
-image_major=${VERSION%%.*}
+image_major=${RELEASE%%.*}
 if [ "$host_major" -lt "$image_major" ]; then
   echo "::error::FreeBSD $host_major host cannot build a FreeBSD $image_major image" >&2
   exit 1
@@ -185,6 +193,17 @@ pw usermod root -h -
 SETUP
 chmod +x "$mnt/tmp/oic-setup.sh"
 chroot "$mnt" /tmp/oic-setup.sh
+
+# The image must end at the patch level it is published as.
+patchlevel() { case "$1" in *-p*) echo "${1##*-p}" ;; *) echo 0 ;; esac; }
+got_u=$(patchlevel "$(chroot "$mnt" freebsd-version -u)")
+got_k=$(patchlevel "$(chroot "$mnt" freebsd-version -k)")
+got=$(( got_u > got_k ? got_u : got_k ))
+echo "[build] patch level: userland p$got_u, kernel p$got_k (expected p$PATCH)"
+if [ "$got" -ne "$PATCH" ]; then
+  echo "::error::image is at ${RELEASE}-p$got, expected $VERSION" >&2
+  exit 1
+fi
 rm -f "$mnt/tmp/oic-setup.sh"
 
 cat >> "$mnt/etc/rc.conf" <<'RC'

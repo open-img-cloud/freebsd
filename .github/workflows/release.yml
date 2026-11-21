@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Override the FreeBSD 15 version (e.g. 15.1); otherwise derived from the tag, falling back to VERSION'
+        description: 'Override the FreeBSD 15 version (e.g. 15.1-p7); otherwise derived from the tag, falling back to VERSION'
         required: false
       publish:
         description: 'If false, skip upload + CF purge (dry-run validation)'
@@ -36,33 +36,25 @@ jobs:
           else
             v=$(tr -d '[:space:]' < VERSION)
           fi
-          if [[ ! "$v" =~ ^15\.[0-9]+$ ]]; then
-            echo "::error::version '$v' is not a FreeBSD 15 release (e.g. 15.1)"
+          if [[ ! "$v" =~ ^15\.[0-9]+(-p[0-9]+)?$ ]]; then
+            echo "::error::version '$v' is not a FreeBSD 15 release (e.g. 15.1 or 15.1-p7)"
             exit 1
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
-  # FreeBSD 15 follows VERSION (watched daily); FreeBSD 14 is the last
-  # 14.x point release, bumped by hand here until the branch ends
-  # (2028-11-30).
+  # VERSION follows the newest 15.x release and its security patch level
+  # (build/detect-upstream.sh, watched daily): 15.1-p7.
   build:
     needs: resolve-version
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - major: '15'
-          - major: '14'
-            version: '14.5'
-    name: FreeBSD ${{ matrix.major }}
+    name: FreeBSD 15
     uses: open-img-cloud/.github/.github/workflows/build-freebsd-image.yml@main
     with:
-      os_name: freebsd-${{ matrix.major }}
-      version: ${{ matrix.version || needs.resolve-version.outputs.version }}
+      os_name: freebsd-15
+      version: ${{ needs.resolve-version.outputs.version }}
       output_filename: 'freebsd-{version}-x86_64.qcow2'
       build_script: build/build.sh
-      # Dedicated FreeBSD runner (runner group freebsd-builder, limited to this repo and to
-      # build-freebsd-image.yml@main). Release, signing and smoke stay on ubuntu-latest.
+      # Dedicated FreeBSD runner (runner group freebsd-builder, limited to the FreeBSD repos
+      # and to build-freebsd-image.yml@main). Release, signing and smoke stay on ubuntu-latest.
       build_runner: '["self-hosted","freebsd","amd64"]'
       runtime_smoke_login_user: freebsd
       publish: ${{ inputs.publish == true || github.event_name == 'push' }}
