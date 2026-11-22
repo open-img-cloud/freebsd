@@ -87,6 +87,33 @@ cosign verify-blob "$F" --bundle "$F.bundle" \
 
 </details>
 
+## Network performance on virtio-net
+
+FreeBSD guests send at the same speed as Linux guests on virtio-net (`vtnet`), but **receive
+more slowly**. Measured on Infomaniak public cloud (2 vCPU flavor, iperf3 to a Debian 13 VM,
+November 2026, FreeBSD 15.1):
+
+| Mbit/s | 1 stream sent | 4 streams sent | 1 stream received | 4 streams received |
+|---|---|---|---|---|
+| Debian 13 guest | 2300 | 2290 | 2290 | 2280 |
+| FreeBSD 15 guest | 1350 to 2040 | 2220 to 2290 | 375 to 850 | 350 to 1280 |
+
+The received figures vary with the hypervisor host, but stay well below Linux. This is a
+known difference between FreeBSD and Linux on virtio-net, not specific to this image, and
+other clouds or hosts can do much better. What helps and what does not:
+
+- **Keep the offloads on** (checksum, TSO, LRO: the image default). Turning them all off
+  makes sending drop to about 200 Mbit/s and does not improve receiving.
+- **Keep multiqueue on** (`hw_vif_multiqueue_enabled=true`, set by the catalog properties and
+  [oic-sync](https://github.com/open-img-cloud/oic-sync)): the guest then uses one queue pair
+  per vCPU.
+- If a workload mostly receives large volumes (backup target, download mirror), measure it on
+  your cloud with `iperf3 -R` before choosing FreeBSD for it.
+
+The measurement is reproducible with the
+[throughput test](https://github.com/open-img-cloud/opnsense/blob/main/tests/throughput.sh)
+of the OPNsense repository.
+
 ## What this image contains
 
 [`build/build.sh`](build/build.sh) runs on a dedicated FreeBSD runner and builds the image from
